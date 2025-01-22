@@ -157,7 +157,7 @@ fn process_region_file(region_file_path: PathBuf) {
 
                 writer.push_chunk(&updated_chunk_bytes, (*x as u8, *z as u8)).expect("Could not push chunk data");
             } else {
-                // writer.push_chunk(&chunk_bytes, (*x as u8, *z as u8)).expect("Could not push chunk data");
+                writer.push_chunk(&chunk_bytes, (*x as u8, *z as u8)).expect("Could not push chunk data");
             }
         }
     });
