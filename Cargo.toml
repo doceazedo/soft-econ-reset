@@ -1,0 +1,10 @@
+[package]
+name = "soft-econ-reset"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+mca = "1.0.0"
+simdnbt = "0.7.0"
+rayon = "1.10"
+flate2 = "1.0.35"
