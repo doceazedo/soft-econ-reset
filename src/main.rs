@@ -6,7 +6,8 @@ use flate2::Compression;
 use mca::{RegionReader, RegionWriter};
 use simdnbt::owned::{BaseNbt, NbtCompound, NbtList, NbtTag};
 use rayon::prelude::*;
-use simdnbt::borrow::NbtCompoundList;
+use simdnbt::borrow::{Nbt, NbtCompoundList};
+use simdnbt::Error;
 
 fn main() {
     let now = Instant::now();
@@ -57,43 +58,51 @@ fn process_player_data(player_data_path: PathBuf) {
     }
     let input = input.as_slice();
 
-    let nbt = simdnbt::borrow::read(&mut Cursor::new(input)).unwrap().unwrap();
+    match simdnbt::borrow::read(&mut Cursor::new(input)) {
+        Ok(nbt) => {
+            match nbt {
+                Nbt::Some(base_nbt) => {
+                    let mut tags = base_nbt
+                        .as_compound()
+                        .iter()
+                        .map(|item| (item.0.to_owned(), item.1.to_owned()))
+                        .collect::<Vec<_>>();
 
-    let mut tags = nbt
-        .as_compound()
-        .iter()
-        .map(|item| (item.0.to_owned(), item.1.to_owned()))
-        .collect::<Vec<_>>();
+                    vec!["Inventory", "EnderItems"].iter().for_each(|inventory_name| {
+                        let maybe_items = base_nbt
+                            .list(inventory_name)
+                            .and_then(|list| list.compounds());
+                        if let Some(items) = maybe_items {
+                            let updated_items = process_items_list(items);
+                            tags = tags
+                                .iter()
+                                .map(|item| (item.0.to_owned(), item.1.to_owned()))
+                                .filter(|tag| tag.0.to_string_lossy() != *inventory_name)
+                                .collect::<Vec<_>>();
+                            tags.push(((*inventory_name).into(), NbtTag::List(NbtList::Compound(updated_items))));
+                        }
+                    });
 
-    vec!["Inventory", "EnderItems"].iter().for_each(|inventory_name| {
-        let maybe_items = nbt
-            .list(inventory_name)
-            .and_then(|list| list.compounds());
-        if let Some(items) = maybe_items {
-            let updated_items = process_items_list(items);
-            tags = tags
-                .iter()
-                .map(|item| (item.0.to_owned(), item.1.to_owned()))
-                .filter(|tag| tag.0.to_string_lossy() != *inventory_name)
-                .collect::<Vec<_>>();
-            tags.push(((*inventory_name).into(), NbtTag::List(NbtList::Compound(updated_items))));
+                    let updated_nbt = BaseNbt::new(
+                        "Player",
+                        NbtCompound::from_values(tags),
+                    );
+
+                    let mut updated_nbt_bytes = Vec::new();
+                    updated_nbt.write(&mut updated_nbt_bytes);
+
+                    let mut buf = vec![];
+                    let mut encoder = flate2::write::GzEncoder::new(&mut buf, Compression::default());
+                    encoder.write_all(updated_nbt_bytes.as_slice()).expect("Could not encode file");
+                    encoder.finish().expect("Could not finish compression");
+
+                    File::create(player_data_path).unwrap().write_all(&buf).expect("Could not write to file");
+                }
+                Nbt::None => {}
+            }
         }
-    });
-
-    let updated_nbt = BaseNbt::new(
-        "Player",
-        NbtCompound::from_values(tags),
-    );
-
-    let mut updated_nbt_bytes = Vec::new();
-    updated_nbt.write(&mut updated_nbt_bytes);
-
-    let mut buf = vec![];
-    let mut encoder = flate2::write::GzEncoder::new(&mut buf, Compression::default());
-    encoder.write_all(updated_nbt_bytes.as_slice()).expect("Could not encode file");
-    encoder.finish().expect("Could not finish compression");
-
-    File::create(player_data_path).unwrap().write_all(&buf).expect("Could not write to file");
+        Err(_) => {}
+    }
 }
 
 fn process_region_folder(region_dir: &Path) {
