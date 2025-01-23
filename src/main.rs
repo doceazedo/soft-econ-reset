@@ -37,8 +37,12 @@ fn process_player_data_folder(player_data_dir: &Path) {
         .par_bridge()
         .for_each(|maybe_player_data_path| {
             if let Ok(player_data_path) = maybe_player_data_path {
-                println!("Processing player data file {:?}", player_data_path.path());
-                process_player_data(player_data_path.path());
+                // println!("Processing player data file {:?}", player_data_path.path());
+                if let Some(extension) = player_data_path.path().extension() {
+                    if extension == "dat" {
+                        process_player_data(player_data_path.path());
+                    }
+                }
             }
         });
 }
