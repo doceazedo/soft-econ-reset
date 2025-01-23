@@ -268,7 +268,7 @@ fn process_items_list(items: NbtCompoundList) -> Vec<NbtCompound> {
                 | "minecraft:lime_shulker_box"
                 | "minecraft:pink_shulker_box"
                 | "minecraft:gray_shulker_box"
-                | "minecraft:silver_shulker_box"
+                | "minecraft:light_gray_shulker_box"
                 | "minecraft:cyan_shulker_box"
                 | "minecraft:purple_shulker_box"
                 | "minecraft:blue_shulker_box"
